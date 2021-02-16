@@ -11,8 +11,8 @@ class Config():
         self.EPSILON = 0.1
         self.MEMORY_CAPACITY = 2000
         self.LR = 0.01
-        self.BATCH_SIZE = 64
-        self.UPDATE_ITERATE = 100
+        self.BATCH_SIZE = 128
+        self.UPDATE_INTERVAL = 100
 
     def get_size(self):
         StateSize, ActionSize = self.ENV.observation_space.shape[0], self.ENV.action_space.n
