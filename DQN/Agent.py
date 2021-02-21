@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 import numpy as np
 from Config import Config
-from QNetwork import DQN
+from Net import DQN
 from ReplayBuffer import ReplayBuffer
 
 class DQNAgent():
     def __init__(self, env='CartPole-v0'):
         super(DQNAgent, self).__init__()
-        self.config = Config()
+        self.config = Config(env=env)
         self.learn_pointer = 0
         self.declare_net()
         self.declare_memory()

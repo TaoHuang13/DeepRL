@@ -1,143 +1,123 @@
+import gym, os
+import numpy as np
+import matplotlib.pyplot as plt
+from itertools import count
+from collections import namedtuple
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-import gym
-import matplotlib.pyplot as plt
-import copy
+from torch.nn import functional as F
+from torch.optim import Adam
+from torch.distributions import Categorical
+from torch.nn.functional import  smooth_l1_loss
 
-# hyper-parameters
-BATCH_SIZE = 128
-LR = 0.01
-GAMMA = 0.90
-EPISILO = 0.9
-MEMORY_CAPACITY = 2000
-Q_NETWORK_ITERATION = 100
+#Hyperparameters
+LEARNING_RATE = 0.01
+GAMMA = 0.995
+NUM_EPISODES = 50000
+RENDER = False
+#env info
+env = gym.make('MountainCar-v0')
+env = env.unwrapped
 
-env = gym.make("CartPole-v0")
-#env = env.unwrapped
-NUM_ACTIONS = env.action_space.n
-NUM_STATES = env.observation_space.shape[0]
-ENV_A_SHAPE = 0 if isinstance(env.action_space.sample(), int) else env.action_space.sample.shape
+env.seed(1)
+torch.manual_seed(1)
 
-class Net(nn.Module):
-    """docstring for Net"""
+num_state = env.observation_space.shape[0]
+num_action = env.action_space.n
+eps = np.finfo(np.float32).eps.item()
+plt.ion()
+saveAction = namedtuple('SavedActions',['probs', 'action_values'])
+
+class Module(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(NUM_STATES, 50)
-        self.fc1.weight.data.normal_(0,0.1)
-        self.fc2 = nn.Linear(50,30)
-        self.fc2.weight.data.normal_(0,0.1)
-        self.out = nn.Linear(30,NUM_ACTIONS)
-        self.out.weight.data.normal_(0,0.1)
+        super(Module, self).__init__()
+        self.fc1 = nn.Linear(num_state, 128)
+        #self.fc2 = nn.Linear(64, 128)
 
-    def forward(self,x):
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
-        x = F.relu(x)
-        action_prob = self.out(x)
-        return action_prob
+        self.action_head = nn.Linear(128, num_action)
+        self.value_head = nn.Linear(128, 1)
+        self.policy_action_value = []
+        self.rewards = []
 
-class DQN():
-    """docstring for DQN"""
-    def __init__(self):
-        super(DQN, self).__init__()
-        self.eval_net, self.target_net = Net(), Net()
-
-        self.learn_step_counter = 0
-        self.memory_counter = 0
-        self.memory = np.zeros((MEMORY_CAPACITY, NUM_STATES * 2 + 2))
-        # why the NUM_STATE*2 +2
-        # When we store the memory, we put the state, action, reward and next_state in the memory
-        # here reward and action is a number, state is a ndarray
-        self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=LR)
-        self.loss_func = nn.MSELoss()
-
-    def choose_action(self, state):
-        state = torch.unsqueeze(torch.FloatTensor(state), 0) # get a 1D array
-        if np.random.randn() <= EPISILO:# greedy policy
-            action_value = self.eval_net.forward(state)
-            action = torch.max(action_value, 1)[1].data.numpy()
-            action = action[0] if ENV_A_SHAPE == 0 else action.reshape(ENV_A_SHAPE)
-        else: # random policy
-            action = np.random.randint(0,NUM_ACTIONS)
-            action = action if ENV_A_SHAPE ==0 else action.reshape(ENV_A_SHAPE)
-        return action
+        self.gamma = GAMMA
 
 
-    def store_transition(self, state, action, reward, next_state):
-        transition = np.hstack((state, [action, reward], next_state))
-        index = self.memory_counter % MEMORY_CAPACITY
-        self.memory[index, :] = transition
-        self.memory_counter += 1
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        #x = F.relu(self.fc2(x))
+
+        probs = F.softmax(self.action_head(x))
+        value = self.value_head(x)
+        return probs, value
+
+policy = Module()
+optimizer = Adam(policy.parameters(), lr=LEARNING_RATE)
+
+def select_action(state):
+    state = torch.from_numpy(state).float()
+    probs, value = policy(state)
+    c = Categorical(probs)
+    action = c.sample()
+    log_prob = c.log_prob(action)
 
 
-    def learn(self):
+    policy.policy_action_value.append(saveAction(log_prob, value))
+    action = action.item()
+    return action
 
-        #update the parameters
-        if self.learn_step_counter % Q_NETWORK_ITERATION ==0:
-            self.target_net.load_state_dict(self.eval_net.state_dict())
-        self.learn_step_counter+=1
 
-        #sample batch from memory
-        sample_index = np.random.choice(MEMORY_CAPACITY, BATCH_SIZE)
-        batch_memory = self.memory[sample_index, :]
-        batch_state = torch.FloatTensor(batch_memory[:, :NUM_STATES])
-        batch_action = torch.LongTensor(batch_memory[:, NUM_STATES:NUM_STATES+1].astype(int))
-        batch_reward = torch.FloatTensor(batch_memory[:, NUM_STATES+1:NUM_STATES+2])
-        batch_next_state = torch.FloatTensor(batch_memory[:,-NUM_STATES:])
+def finish_episode():
+    rewards = []
+    saveActions = policy.policy_action_value
+    policy_loss = []
+    value_loss = []
+    R = 0
 
-        #q_eval
-        q_eval = self.eval_net(batch_state).gather(1, batch_action)
-        q_next = self.target_net(batch_next_state).detach()
-        q_target = batch_reward + GAMMA * q_next.max(1)[0].view(BATCH_SIZE, 1)
-        loss = self.loss_func(q_eval, q_target)
+    for r in policy.rewards[::-1]:
+        R = r + policy.gamma * R
+        rewards.insert(0, R)
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+    # Normalize the reward
+    rewards = torch.tensor(rewards)
+    rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
 
-def reward_func(env, x, x_dot, theta, theta_dot):
-    r1 = (env.x_threshold - abs(x))/env.x_threshold - 0.5
-    r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
-    reward = r1 + r2
-    return reward
+    #Figure out loss
+    for (log_prob, value), r in zip(saveActions, rewards):
+        reward = r - value.item()
+        policy_loss.append(-log_prob * reward)
+        value_loss.append(smooth_l1_loss(value, torch.tensor([r]) ))
+
+    optimizer.zero_grad()
+    loss = torch.stack(policy_loss).sum() + torch.stack(value_loss).sum()
+    loss.backward()
+    optimizer.step()
+
+    del policy.rewards[:]
+    del policy.policy_action_value[:]
+
 
 def main():
-    dqn = DQN()
-    episodes = 400
-    print("Collecting Experience....")
-    reward_list = []
-    #plt.ion()
-    fig, ax = plt.subplots()
-    for i in range(episodes):
+    run_steps = []
+    for i_episode in range(NUM_EPISODES):
         state = env.reset()
-        ep_reward = 0
-        while True:
-            #env.render()
-            action = dqn.choose_action(state)
-            next_state, reward , done, info = env.step(action)
-            x, x_dot, theta, theta_dot = next_state
-            reward = reward_func(env, x, x_dot, theta, theta_dot)
+        if RENDER: env.render()
 
-            dqn.store_transition(state, action, reward, next_state)
-            ep_reward += reward
+        for t in count():
+            action = select_action(state)
+            state , reward, done, _ = env.step(action)
+            reward = state[0] + reward
+            if RENDER: env.render()
+            policy.rewards.append(reward)
 
-            if dqn.memory_counter >= MEMORY_CAPACITY:
-                dqn.learn()
-                if done:
-                    print("episode: {} , the episode reward is {}".format(i, round(ep_reward, 3)))
             if done:
-                print("episode: {} , the episode reward is {}".format(i, round(ep_reward, 3)))
+                run_steps.append(t)
+                print("Epiosde {} , run step is {} ".format(i_episode+1 , t+1))
                 break
-            state = next_state
-        r = copy.copy(reward)
-        reward_list.append(r)
-        ax.set_xlim(0,300)
-        #ax.cla()
-        ax.plot(reward_list, 'g-', label='total_loss')
-        
+
+        finish_episode()
+        #plot(run_steps)
+
 
 if __name__ == '__main__':
     main()

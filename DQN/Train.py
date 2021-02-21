@@ -1,10 +1,8 @@
 import gym
 import matplotlib.pyplot as plt
+import argparse
 import copy
 import Agent
-
-EPISODES = 400
-ENV = 'CartPole-v0'
 
 def reward_func(env, x, x_dot, theta, theta_dot):
     r1 = (env.x_threshold - abs(x))/env.x_threshold - 0.5
@@ -44,4 +42,11 @@ def main():
         reward_list.append(r)   
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--env', type=str, default='CartPole-v0')
+    parser.add_argument('--episodes', type=int, default=400)
+    args = parser.parse_args()
+
+    ENV = args.env
+    EPISODES = args.episodes
     main()
