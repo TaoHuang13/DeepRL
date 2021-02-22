@@ -1,5 +1,6 @@
 import torch
 import random
+import numpy as np
 
 class ReplayBuffer():
     def __init__(self, capacity):
@@ -16,10 +17,10 @@ class ReplayBuffer():
         batch_state, batch_action, batch_reward, batch_next_state, batch_done = zip(*batch_sample)
         
         batch_state = torch.FloatTensor(batch_state).to(device)
-        batch_action = torch.FloatTensor(batch_action).unsqueeze(1).to(device)
+        batch_action = torch.FloatTensor(batch_action).to(device)
         batch_reward = torch.FloatTensor(batch_reward).unsqueeze(1).to(device)
         batch_next_state = torch.FloatTensor(batch_next_state).to(device)
-        batch_done = torch.FloatTensor(1 - batch_done).to(device)
+        batch_done = torch.FloatTensor(1 - np.array(batch_done)).unsqueeze(1).to(device)
 
         return batch_state, batch_action, batch_reward, batch_next_state, batch_done
 

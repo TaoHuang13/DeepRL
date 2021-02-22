@@ -30,7 +30,7 @@ class DDPGAgent():
 
     def declare_optimizer(self, lr):
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=1e-3)
 
     def store_transition(self, s0, a, r, s1, d):
         self.buffer.push(s0, a, r, s1, d)
@@ -50,14 +50,14 @@ class DDPGAgent():
         q_target = self.critic_target(batch_next_state, self.actor_target(batch_next_state))
         q_target = batch_reward + (batch_done * self.gamma * q_target).detach()
         q_eval = self.critic(batch_state, batch_action)
-        critic_loss = nn.MSELoss(q_eval, q_target)
+        critic_loss = nn.MSELoss()(q_eval, q_target)
         #optimize critic
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
         
         #actor_loss
-        actor_loss = -self.critic(batch_state, batch_action)
+        actor_loss = -self.critic(batch_state, self.actor(batch_state)).mean()
         #optimize actor
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -65,10 +65,10 @@ class DDPGAgent():
 
     def updata_target(self):
         for eval_param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
-            target_param.data.copy_(self.tau * eval_param, (1 - self.tau) * target_param)
+            target_param.data.copy_(self.tau * eval_param + (1 - self.tau) * target_param)
 
         for eval_param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-            target_param.data.copy_(self.tau * eval_param, (1 - self.tau) * target_param)
+            target_param.data.copy_(self.tau * eval_param + (1 - self.tau) * target_param)
 
         self.num_critic_update += 1
         self.num_actor_update += 1
