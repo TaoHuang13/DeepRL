@@ -18,7 +18,7 @@ parser.add_argument('--explore_noise', default=0.1, type=float) # exploration no
 parser.add_argument('--policy_noise', default=0.2, type=float)  # policy noise
 parser.add_argument('--noise_clip', default=0.5, type=float)
 parser.add_argument('--policy_delay', default=2, type=int)  # delayed update for actor
-parser.add_argument('--lr', default=1e-4, type=float)
+parser.add_argument('--lr', default=1e-3, type=float)
 parser.add_argument('--batch_size', default=100, type=int)
 parser.add_argument('--update_iteration', default=2000, type=int)
 

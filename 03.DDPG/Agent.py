@@ -20,12 +20,12 @@ class DDPGAgent():
         self.num_actor_update = 0
 
     def declare_net(self, state_dim, action_dim, max_action):
-        self.actor = Net.Actor(state_dim, action_dim, max_action)
-        self.actor_target = Net.Actor(state_dim, action_dim, max_action)
+        self.actor = Net.Actor(state_dim, action_dim, max_action).to(self.device)
+        self.actor_target = Net.Actor(state_dim, action_dim, max_action).to(self.device)
         self.actor_target.load_state_dict(self.actor.state_dict())
 
-        self.critic = Net.Critic(state_dim, action_dim)
-        self.critic_target = Net.Critic(state_dim, action_dim)
+        self.critic = Net.Critic(state_dim, action_dim).to(self.device)
+        self.critic_target = Net.Critic(state_dim, action_dim).to(self.device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 
     def declare_optimizer(self, lr):
