@@ -67,8 +67,8 @@ class TD3Agent():
         q_target2 = self.critic2_target(batch_next_state, next_action)
         q_target = torch.min(q_target1, q_target2)
         q_target = batch_reward + (batch_done * self.gamma * q_target).detach()
-        critic1_loss = nn.MSELoss()(q_eval1, q_target)
-        critic2_loss = nn.MSELoss()(q_eval2, q_target)
+        critic1_loss = nn.MSELoss()(q_eval1, q_target).mean()
+        critic2_loss = nn.MSELoss()(q_eval2, q_target).mean()
 
         #optimize critic1
         self.critic1_optimizer.zero_grad()

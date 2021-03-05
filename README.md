@@ -1,9 +1,16 @@
 # DeepRL
-Implementation of classic deep RL algorithms
+Implementation of some deep RL algorithms
+
+## Requirements
+
+- python<=3.6
+- torch==1.0
+- torchvision
+- tensorflow==1.15.2
+- tensorboardX
+- gym
 
 ## Related Paper
 
- 
 
-[01]: (https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf	"[Playing Atari with Deep Reinforcement Learning](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)"
 
