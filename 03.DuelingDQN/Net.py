@@ -13,13 +13,16 @@ class DQN(nn.Module):
         self.fc1.weight.data.normal_(0, 0.1)
         self.fc2 = nn.Linear(50,30)
         self.fc1.weight.data.normal_(0, 0.1)
-        self.out = nn.Linear(30, config.ACTION_SIZE)
+        self.fc_adv = nn.Linear(30, config.ACTION_SIZE)
+        self.fc_state = nn.Linear(30, 1)
 
     def forward(self, x):
         x = self.fc1(x)
         x = F.relu(x)
         x = self.fc2(x)
         x = F.relu(x)
-        action_value = self.out(x)
+        adv_value = self.fc_adv(x)
+        state_value = self.fc_state(x)
+        action_value = state_value + adv_value - torch.mean(adv_value)
         
-        return action_value
+        return adv_value
