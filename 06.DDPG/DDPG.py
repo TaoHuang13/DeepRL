@@ -27,7 +27,7 @@ parser.add_argument('--load', default=False, type=bool)
 
 args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-path = './03.DDPG/' + args.env + '_Model/'
+path = './06.DDPG/' + args.env + '_Model/'
 os.makedirs(path, exist_ok=True)
 env = gym.make(args.env)
 writer = SummaryWriter(path)

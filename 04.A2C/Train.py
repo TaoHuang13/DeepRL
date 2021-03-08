@@ -40,7 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', type=str, default='MountainCar-v0')
     parser.add_argument('--episodes', type=int, default=10000)
     args = parser.parse_args()
-    os.makedirs('./AC/AC_' + args.env + '_Model/', exist_ok=True)
+    os.makedirs('./A2C/A2C_' + args.env + '_Model/', exist_ok=True)
 
     ENV = args.env
     EPISODES = args.episodes

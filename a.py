@@ -1,7 +1,5 @@
 import torch
 
-a = torch.ones((64,1))
-for i in range(64):
-    a[i] = 2
-
-print(a[2])
+a = [1,2,3,4]
+a = torch.tensor(a).view(1,-1)
+print(a.size())
